@@ -14,7 +14,7 @@ class SQLQueryWindow(Toplevel):
         super().__init__(*args, **kwargs)
         self.db = db
         self.query_tab = query_tab
-        self.geometry('600x400+610+10')
+        self.geometry('800x400+810+10')
         self.title('Query')
         self.create_menu()
         self.create_widgets()
@@ -119,7 +119,7 @@ class SQLiteConnector:
             self._parse_tables(tables)
     
     def _parse_tables(self, tables):
-        re_table_fields = re.compile('([a-z]+)\s[a-z]+')
+        re_table_fields = re.compile('([0-9a-z\_]+)\s[0-9a-z\_]+')
         re_view_fields = re.compile('[a-zA-Z\.\(\)]+ as ([a-zA-Z]+)')
         for table in tables:
             if table[4].startswith('CREATE TABLE'):
@@ -179,7 +179,7 @@ class SQLiteReader(Frame):
         self.master = master
         self.master.option_add('*tearOff', False)
         self.master.title('SQLite Reader')
-        self.master.geometry('600x400+10+10')
+        self.master.geometry('800x400+10+10')
         self.grid(column=0, row=0, sticky=(N, W, E, S))
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)

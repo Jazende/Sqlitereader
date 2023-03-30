@@ -1,5 +1,4 @@
 import sqlite3
-import re
 
 from functools import partial
 
@@ -115,22 +114,16 @@ class SQLiteConnector:
     def _read_master_table(self):
         with self as cur:
             cur.execute('SELECT * FROM sqlite_master')
-            tables = cur.fetchall()
-            self._parse_tables(tables)
-    
-    def _parse_tables(self, tables):
-        re_table_fields = re.compile('([0-9a-z\_]+)\s[0-9a-z\_]+')
-        re_view_fields = re.compile('[a-zA-Z\.\(\)]+ as ([a-zA-Z]+)')
-        for table in tables:
-            if table[4].startswith('CREATE TABLE'):
-                self._tables[table[1]] = {
+            table_names = [info[1] for info in cur.fetchall() if info[0] == 'table']
+            
+            for table in table_names:
+                q = f"pragma table_info('{table}')"
+                cur.execute(q)
+                table_info = cur.fetchall()
+
+                self._tables[table] = {
                     'type': 'TABLE',
-                    'fields': [field for field in re_table_fields.findall(table[4])]
-                }
-            elif table[4].startswith('CREATE VIEW'):
-                self._tables[table[1]] = {
-                    'type': 'VIEW',
-                    'fields': [field for field in re_view_fields.findall(table[4])]
+                    'fields': [info[1] for info in table_info]
                 }
 
     def read_table(self, table_name, fields):

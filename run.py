@@ -223,7 +223,7 @@ class SQLiteReader(Frame):
         self._menu.entryconfig('Reload', state='normal')
         self.file_menu.entryconfig('Query', state='normal')
         
-        self.master.title(f'SQLite Reader - {self.file_name}')
+        self.master.title(f'SQLite Reader - {path}')
 
     def run_query(self):
         self.tab_parent.select(self.tab_query)

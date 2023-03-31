@@ -1,4 +1,7 @@
+import os
 import sqlite3
+import sys
+
 
 from functools import partial
 
@@ -189,20 +192,27 @@ class SQLiteReader(Frame):
         self.master.config(menu=self._menu)
 
         self.file_menu = Menu(self._menu)
-        self.file_menu.add_command(label='Open', command=self.open_database)
+        self.file_menu.add_command(label='Open', command=self.open_file_dialog)
         self.file_menu.add_command(label='Query', command=self.run_query, state='disabled')
 
         self._menu.add_cascade(label='File', menu=self.file_menu)
-        self._menu.add_command(label='Reload', command=self.reload_current_table, state='disabled')
+        self._menu.add_command(label='Reload', command=self.reload)
         self._menu.add_command(label='Exit', command=self.master.destroy)
 
-    def open_database(self, new_folder=True):
+    def open_file_dialog(self, new_folder=True):
         for item in self.tab_parent.winfo_children():
             item.destroy()
         if new_folder:
             self.file_name = filedialog.askopenfilename()
+        self.load_database(self.file_name)
 
-        self.db = SQLiteConnector(self.file_name)
+    def reload(self):
+        for item in self.tab_parent.winfo_children():
+            item.destroy()
+        self.load_database(self.file_name)
+
+    def load_database(self, path):
+        self.db = SQLiteConnector(path)
         for idx, table in enumerate(self.db.tables):
             new_tab = SQLTableFrame(self.tab_parent, table, self.db)
             self.tab_parent.add(new_tab, text=table)
@@ -212,22 +222,25 @@ class SQLiteReader(Frame):
 
         self._menu.entryconfig('Reload', state='normal')
         self.file_menu.entryconfig('Query', state='normal')
-
-    def reload_current_table(self):
-        if hasattr(self, 'query_window'):
-            self.query_window.destroy()
-        self.open_database(new_folder=False)
+        
+        self.master.title(f'SQLite Reader - {self.file_name}')
 
     def run_query(self):
         self.tab_parent.select(self.tab_query)
         self.query_window = SQLQueryWindow(self.master, db=self.db, query_tab=self.tab_query)
 
-def main():
+def main(*args):
     root = Tk()
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
     app = SQLiteReader(master=root)
+
+    if len(args) > 1:
+        if os.path.isfile(args[1]):
+            if os.path.splitext(args[1])[1] in ['.db', '.sqlite']:
+                app.load_database(args[1])
+
     app.mainloop()
 
 if __name__ == '__main__':
-    main()
+    main(*sys.argv)

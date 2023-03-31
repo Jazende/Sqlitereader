@@ -33,7 +33,6 @@ class SQLQueryWindow(Toplevel):
         self.frame.pack(expand=YES, fill=BOTH)
         self.query_input = Text(self.frame)
         self.query_input.pack(expand=YES, fill=BOTH)
-        self.query_input.insert(1.0, 'SELECT * FROM summoners')
 
     def run_query(self):
         fields, results = self.db.query(self.query_input.get(1.0, 'end'))

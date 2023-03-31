@@ -16,7 +16,7 @@ class SQLQueryWindow(Toplevel):
         super().__init__(*args, **kwargs)
         self.db = db
         self.query_tab = query_tab
-        self.geometry('800x400+810+10')
+        self.geometry('800x400+910+100')
         self.title('Query')
         self.create_menu()
         self.create_widgets()
@@ -175,7 +175,7 @@ class SQLiteReader(Frame):
         self.master = master
         self.master.option_add('*tearOff', False)
         self.master.title('SQLite Reader')
-        self.master.geometry('800x400+10+10')
+        self.master.geometry('800x400+100+100')
         self.grid(column=0, row=0, sticky=(N, W, E, S))
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -207,6 +207,8 @@ class SQLiteReader(Frame):
         self.load_database(self.file_name)
 
     def reload(self):
+        if not hasattr(self, 'file_name'):
+            return
         for item in self.tab_parent.winfo_children():
             item.destroy()
         self.load_database(self.file_name)

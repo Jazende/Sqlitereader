@@ -2,11 +2,8 @@ import os
 import sqlite3
 import sys
 
-
-from functools import partial
-
 from tkinter import Tk, Toplevel
-from tkinter import Frame, Menu, Button, Text, Scrollbar
+from tkinter import Frame, Menu, Text, Scrollbar
 from tkinter import N, W, E, S, NO, YES, BOTH
 from tkinter import filedialog
 from tkinter.ttk import Notebook, Treeview

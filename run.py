@@ -5,8 +5,70 @@ import sys
 from tkinter import Tk, Toplevel
 from tkinter import Frame, Menu, Text, Scrollbar
 from tkinter import N, W, E, S, NO, YES, BOTH
-from tkinter import filedialog
+from tkinter import filedialog, INSERT
 from tkinter.ttk import Notebook, Treeview
+
+
+class SQLConnector:
+    def __init__(self, path):
+        self.path = path
+        if not os.path.exists(path):
+            raise ValueError('Can\'t find DB path.')
+        self.database = sqlite3.connect(path)
+        self.tables = {}
+        self.read_database()
+
+    def __enter__(self):
+        self.t_connection = sqlite3.connect(self.path)
+        self.t_connection.row_factory = lambda cursor, row: [x for x in row]
+        self.t_cursor = self.t_connection.cursor()
+        return self.t_cursor
+
+    def __exit__(self, type, value, traceback):
+        self.t_cursor.close()
+        self.t_connection.commit()
+        self.t_connection.close()
+        return
+
+    def read_database(self):
+        with self as cursor:
+            cursor.execute('SELECT * FROM sqlite_master')
+            table_info = cursor.fetchall()
+
+            self.tables = {}
+            for table in table_info:
+                # TYPE, NAME, TBL_NAME, rootpage, SQL
+                if table[0] == 'table':
+                    self.tables[table[1]] = []
+
+            for table in self.tables.keys():
+                cursor.execute(f'pragma table_info({table})')
+                columns = cursor.fetchall()
+                # ID, NAME, TYPE, NOTNULL, default_value, prim_key
+                for column in columns:
+                    self.tables[table].append(column[1])
+        return
+
+    def read_table(self, table_name, _):
+        with self as cursor:
+            cursor.execute(f'SELECT * FROM {table_name}')
+            results = cursor.fetchall()
+        return results
+
+    def query(self, qry):
+        try:
+            with self as cursor:
+                cursor.execute(qry)
+                results = cursor.fetchall()
+                columns = [x[0] for x in cursor.description]
+            return columns, results
+        except sqlite3.OperationalError as e:
+            return (('Operational Error (Query) SQLite', ), ((e, ), ))
+        except TypeError as e:
+            return (('TypeError', ), ((e, ), ))
+        except Exception as e:
+            return (('General Error', ), ((e, ), ))
+
 
 class SQLQueryWindow(Toplevel):
     def __init__(self, *args, db, query_tab, **kwargs):
@@ -28,11 +90,11 @@ class SQLQueryWindow(Toplevel):
         self._menu.add_command(label='Close', command=self.destroy)
 
     def create_widgets(self):
-        # Top Level Frame:
         self.frame = Frame(self)
         self.frame.pack(expand=YES, fill=BOTH)
         self.query_input = Text(self.frame)
         self.query_input.pack(expand=YES, fill=BOTH)
+        self.query_input.insert(INSERT, f'SELECT rowid, * FROM {list(self.db.tables.keys())[0]}')
 
     def run_query(self):
         fields, results = self.db.query(self.query_input.get(1.0, 'end'))
@@ -49,7 +111,7 @@ class SQLTableFrame(Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        table_fields = tuple(self.db._tables[self.table_name]['fields'])
+        table_fields = tuple(self.db.tables[self.table_name])
         data = self.db.read_table(self.table_name, table_fields)
 
         self.tree = Treeview(self, selectmode="extended", columns=table_fields)
@@ -100,71 +162,6 @@ class SQLTableFrameQuery(Frame):
 
         self.tree.pack(expand=YES, fill=BOTH)
 
-class SQLiteConnector:
-    def __init__(self, db_location):
-        self.db_location = db_location
-        self._tables = {}
-        self._read_master_table()
-    
-    @property
-    def tables(self):
-        return self._tables.keys()
-
-    def _read_master_table(self):
-        with self as cur:
-            cur.execute('SELECT * FROM sqlite_master')
-            table_names = [info[1] for info in cur.fetchall() if info[0] == 'table']
-            
-            for table in table_names:
-                q = f"pragma table_info('{table}')"
-                cur.execute(q)
-                table_info = cur.fetchall()
-
-                self._tables[table] = {
-                    'type': 'TABLE',
-                    'fields': [info[1] for info in table_info]
-                }
-
-    def read_table(self, table_name, fields):
-        with self as cur:
-            cur.execute(f"SELECT {','.join(fields)} FROM {table_name} ORDER BY rowid")
-            table_info = cur.fetchall()
-            return table_info
-
-    def query(self, query):
-        with self as cur:
-            cur.execute(query.replace('\n', ' '))
-            if query.startswith('INSERT INTO'):
-                fields = ('Items Added', )
-                results = ((cur.rowcount, ), )
-                self.t_connection.commit()
-            elif query.startswith('DELETE FROM'):
-                fields = ('Items Deleted', )
-                results = ((cur.rowcount, ), )
-                self.t_connection.commit()
-            elif query.startswith('DROP VIEW'):
-                fields = ('View deleted', )
-                results = (('Complete'), )
-                self.t_connection.commit()
-            elif query.startswith('DROP TABLE'):
-                fields = ('Table dropped', )
-                results = (('Complete'), )
-                self.t_connection.commit()
-            else:
-                fields = [f[0] for f in cur.description]
-                results = cur.fetchall()
-        return fields, results
-
-    def __enter__(self):
-        self.t_connection = sqlite3.connect(self.db_location)
-        self.t_cursor = self.t_connection.cursor()
-        return self.t_cursor
-    
-    def __exit__(self, type, value, traceback):
-        self.t_cursor.close()
-        self.t_connection.close()
-        return
-
 class SQLiteReader(Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -210,7 +207,7 @@ class SQLiteReader(Frame):
         self.load_database(self.file_name)
 
     def load_database(self, path):
-        self.db = SQLiteConnector(path)
+        self.db = SQLConnector(path)
         for idx, table in enumerate(self.db.tables):
             new_tab = SQLTableFrame(self.tab_parent, table, self.db)
             self.tab_parent.add(new_tab, text=table)
@@ -242,3 +239,4 @@ def main(*args):
 
 if __name__ == '__main__':
     main(*sys.argv)
+
